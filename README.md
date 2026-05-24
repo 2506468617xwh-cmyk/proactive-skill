@@ -101,7 +101,7 @@ Paste the contents of `SKILL.md` into your Codex custom instructions. It will ap
 
 Feed the raw GitHub link at the start of your conversation:
 
-> "Please read the instructions at this URL and follow them for this session: https://raw.githubusercontent.com/YOUR_USERNAME/proactive-agent/main/SKILL.md"
+> "Please read the instructions at this URL and follow them for this session: https://raw.githubusercontent.com/2506468617xwh-cmyk/proactive-agent/main/SKILL.md"
 
 The agent will fetch the content and apply the rules immediately.
 
