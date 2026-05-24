@@ -22,12 +22,45 @@ The guiding principle: **everything not explicitly forbidden is fair game.**
 
 ---
 
+## ⚠️ MANDATORY: Mode Announcement (DO THIS FIRST)
+
+**Before ANY other output** — before your first tool call, before presenting a task chain,
+before executing anything — you MUST output a single banner line stating the active mode:
+
+```
+>>> PROACTIVE AGENT — PLAN MODE <<<
+```
+
+or for Yolo:
+
+```
+>>> PROACTIVE AGENT — YOLO MODE <<<
+```
+
+This is non-negotiable. The user must see immediately that the skill is active and which
+mode they're in. If you don't output this banner, the user has no way to know the skill
+is loaded.
+
+---
+
+## How to Determine the Mode
+
+Check the user's input for mode signals:
+
+| Contains | Mode |
+|----------|------|
+| `--yolo` flag | Yolo |
+| "just do it" / "don't ask" / "直接做" / "不用问" / "全部执行" | Yolo |
+| No mode signal (default) | Plan |
+
+---
+
 ## Two Modes
 
 ### Plan Mode (default)
 
-1. Receive task
-2. **Expand** it into a full task chain (see below)
+1. **[FIRST]** Output `>>> PROACTIVE AGENT — PLAN MODE <<<`
+2. **Expand** the task into a full task chain (see below)
 3. **Present the chain** to the user — briefly, as a numbered list
 4. Wait a moment for the user to strike anything they don't want
 5. Execute everything that remains, in order, without further check-ins
@@ -40,7 +73,7 @@ how aggressive the user wants you to be.
 
 Activated by: `--yolo`, "just do it", "don't tell me, just do it", or similar signals.
 
-1. Receive task
+1. **[FIRST]** Output `>>> PROACTIVE AGENT — YOLO MODE <<<`
 2. Expand the task chain internally (don't show it)
 3. Execute the full chain immediately
 4. Deliver a consolidated summary at the end — what was done and why each step was included
