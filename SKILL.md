@@ -22,45 +22,12 @@ The guiding principle: **everything not explicitly forbidden is fair game.**
 
 ---
 
-## ⚠️ MANDATORY: Mode Announcement (DO THIS FIRST)
-
-**Before ANY other output** — before your first tool call, before presenting a task chain,
-before executing anything — you MUST output a single banner line stating the active mode:
-
-```
->>> PROACTIVE AGENT — PLAN MODE <<<
-```
-
-or for Yolo:
-
-```
->>> PROACTIVE AGENT — YOLO MODE <<<
-```
-
-This is non-negotiable. The user must see immediately that the skill is active and which
-mode they're in. If you don't output this banner, the user has no way to know the skill
-is loaded.
-
----
-
-## How to Determine the Mode
-
-Check the user's input for mode signals:
-
-| Contains | Mode |
-|----------|------|
-| `--yolo` flag | Yolo |
-| "just do it" / "don't ask" / "直接做" / "不用问" / "全部执行" | Yolo |
-| No mode signal (default) | Plan |
-
----
-
 ## Two Modes
 
 ### Plan Mode (default)
 
-1. **[FIRST]** Output `>>> PROACTIVE AGENT — PLAN MODE <<<`
-2. **Expand** the task into a full task chain (see below)
+1. Receive task
+2. **Expand** it into a full task chain (see below)
 3. **Present the chain** to the user — briefly, as a numbered list
 4. Wait a moment for the user to strike anything they don't want
 5. Execute everything that remains, in order, without further check-ins
@@ -73,7 +40,7 @@ how aggressive the user wants you to be.
 
 Activated by: `--yolo`, "just do it", "don't tell me, just do it", or similar signals.
 
-1. **[FIRST]** Output `>>> PROACTIVE AGENT — YOLO MODE <<<`
+1. Receive task
 2. Expand the task chain internally (don't show it)
 3. Execute the full chain immediately
 4. Deliver a consolidated summary at the end — what was done and why each step was included
@@ -121,6 +88,54 @@ Not all steps in a chain carry the same risk. Before executing each step, classi
 
 In Yolo mode, high-risk steps are still executed — but they're never silent. Always name them
 in the summary with a one-line rationale.
+
+---
+
+## Circuit Breaker
+
+In Yolo mode, the chain must halt immediately and escalate to Plan mode if any step fails:
+
+- A test fails
+- Lint or type-check reports errors
+- The build breaks
+- A file operation returns an error
+
+Do not continue expanding or executing on top of a broken state. Report what failed,
+what was completed before the failure, and wait for the user to decide how to proceed.
+
+In Plan mode, flag any step that depends on a previous step's success — if step 2 fails,
+steps 3–5 that build on it are automatically suspended, not skipped silently.
+
+---
+
+## Code Delivery Rules
+
+When producing or modifying code as part of a chain:
+
+- **Always output complete files.** Never produce snippets, partial functions, or
+  "replace lines X–Y with this" fragments. Every file touched must be delivered in full.
+- **No placeholder comments.** Do not write `// ... rest of the code unchanged` or
+  `# TODO: fill in`. If you can't complete a section, say so explicitly — don't fake it.
+- **Config files are code.** Environment configs, CI configs, and deployment manifests
+  must be complete and valid, not illustrative examples.
+
+These rules exist because partial output silently destroys context when an agent
+reconstructs or redeploys the codebase.
+
+---
+
+## Context Boundary Control
+
+Long chains can exhaust the context window, causing the agent to "forget" the original
+task or hallucinate earlier decisions. Mandatory checkpoints:
+
+- **Force a summary and pause** when the chain touches more than 3 core files or
+  involves a cross-module architectural change. Present what has been done and
+  confirm the original intent before continuing.
+- **Re-state the original task** at the start of each checkpoint summary, to anchor
+  against drift.
+- **Cap chain length at 7 steps.** If the natural chain exceeds 7, split it: complete
+  the first 7, summarize, then ask the user whether to continue with the next batch.
 
 ---
 
@@ -174,6 +189,8 @@ next session without requiring them to reconstruct context.
   between two valid approaches, stop and surface the fork — don't silently pick one.
 - **Don't loop forever.** Each step in the chain should make the codebase more complete or
   more correct. If you can't articulate why a step belongs, cut it.
+- **Don't continue on a broken build.** Trigger the circuit breaker instead.
+- **Don't produce partial code.** Full files only, always.
 
 ---
 
@@ -187,3 +204,6 @@ next session without requiring them to reconstruct context.
 | "undo" / "revert" | Roll back to last checkpoint. Summarize what was reverted. |
 | "just do X, nothing else" | Treat as explicit scope lock. Do only X. |
 | Ambiguous fork in chain | Surface once. Don't guess. |
+| Test / lint / build fails | Circuit breaker: halt, report, escalate to Plan mode. |
+| Chain > 7 steps | Split: complete first 7, summarize, ask before continuing. |
+| > 3 core files touched | Checkpoint: re-state original task, confirm before proceeding. |
