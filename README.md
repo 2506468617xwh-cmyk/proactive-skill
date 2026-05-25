@@ -1,20 +1,25 @@
 # proactive-agent
 
-A skill for [Claude Code](https://claude.ai/code) (and compatible agentic coding assistants) that replaces the default **stop-and-ask** loop with a **think-ahead-and-execute** loop.
+A skill for [Claude Code](https://claude.ai/code) and compatible agentic coding assistants that replaces the default **stop-and-ask** loop with a **think-ahead-and-execute** loop.
 
 ## The problem
 
 Default agent behavior:
 
 ```
-do task → stop → report → wait for user → do task → stop → ...
+do task → stop → report → wait → do task → stop → ...
 ```
 
-Every iteration requires a human prompt. Complex work that should take one session takes ten.
+Every step requires a human prompt. Complex work that should take one session takes ten.
 
 ## What this skill does
 
-Before touching any code, the agent expands the task into a **natural chain of follow-on work** — the steps a senior engineer would predictably take next — then executes the whole chain.
+Before touching any code, the agent:
+
+1. **Thinks deeply** — understands the full scope, looks 3–5 steps ahead, surveys the blast radius
+2. **Generates three task chains** — each a genuinely different strategy for tackling the work
+3. **Lets you choose** — pick a chain, ask for new ones, or describe your own direction
+4. **Executes completely** — runs the chosen chain end-to-end without interruption
 
 Guiding principle: **everything not explicitly forbidden is fair game.**
 
@@ -24,51 +29,59 @@ Guiding principle: **everything not explicitly forbidden is fair game.**
 
 ### Plan mode (default)
 
-The agent shows you the task chain before executing. You can strike anything you don't want. Then it runs the rest without interruption.
+The agent presents three chains before executing. You pick one — or ask for alternatives.
 
 ```
-User: add rate limiting to the API
-
-Agent:
-  Here's what I'll do:
+Chain A — Surgical: minimal, controlled scope
   1. Add rate limiting middleware
-  2. Add config for limits (env vars)
-  3. Add tests for limit enforcement and bypass
-  4. Add error response for 429
+  2. Add 429 error response
+  3. Write targeted tests
+
+Chain B — Complete: the "done done" version
+  1. Add rate limiting middleware
+  2. Add env config for limits
+  3. Write tests for enforcement and bypass
+  4. Add 429 error response
   5. Update API docs
 
-  Striking anything? Otherwise starting now.
+Chain C — Forward-looking: complete + next problem
+  1–5. (same as B)
+  6. Add rate limit headers to all responses
+  7. Add monitoring hook for limit events
+
+Which chain? (A / B / C) — or tell me a different direction, or type "new" for three new options.
 ```
 
 ### Yolo mode
 
-No plan shown. The agent expands the chain internally and executes immediately. One consolidated summary at the end.
+No plan shown. The agent picks the best chain internally and executes immediately.
 
-Activate with `--yolo` or just say "don't tell me, just do it."
-
----
-
-## Risk tiers
-
-The agent classifies each step before acting:
-
-| Tier | Examples | Behavior |
-|------|----------|----------|
-| Low | Tests, lint, comments | Silent execution |
-| Medium | New files, new logic | Execute, mention in summary |
-| High | Delete files, rename interfaces, schema changes | Plan mode: flag first. Yolo: execute + call out in summary |
-| Blocked | Anything in project off-limits list | Skip, explain why |
+Activate with `--yolo` or "just do it."
 
 ---
 
-## Project context
+## Chain selection
 
-The agent respects your project's own rules. It checks for:
+After seeing the three chains, you have four options:
 
-- `CLAUDE.md` / `AGENT.md`
-- `.claude/rules.md`
+| Input | Result |
+|-------|--------|
+| `A` / `B` / `C` | Execute that chain |
+| `new` / "none of these" | Regenerate three new chains with different angles |
+| "I want something more focused on X" | Agent generates one targeted chain, confirms, executes |
+| "B but skip step 3" | Agent adapts the chain, confirms, executes |
 
-Put team conventions, forbidden patterns, and ownership boundaries here. The agent reads them before expanding any task chain.
+---
+
+## Safety mechanisms
+
+**Circuit breaker** — if any test, lint, type-check, or build fails mid-chain, execution halts immediately. The agent reports what failed and waits for instructions. It never continues building on a broken state.
+
+**Code delivery rules** — complete files only. No snippets, no `// ...rest unchanged` placeholders, no partial configs.
+
+**Context boundary control** — chains are capped at 7 steps. If a chain touches more than 3 core files or involves cross-module changes, the agent pauses, re-states the original task, and confirms before continuing.
+
+**Risk tiers** — each step is classified (Low / Medium / High / Blocked) before execution. High-risk steps are flagged in Plan mode and always called out in the summary.
 
 ---
 
@@ -76,60 +89,52 @@ Put team conventions, forbidden patterns, and ownership boundaries here. The age
 
 ### Claude Code
 
-Copy `SKILL.md` into your project or global Claude Code skills directory:
-
 ```bash
-# Project-level (affects this repo only)
-cp SKILL.md .claude/skills/proactive-agent.md
+# Global (all projects)
+New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.claude\skills"   # Windows
+mkdir -p ~/.claude/skills                                                        # Mac/Linux
 
-# Global (affects all projects)
 cp SKILL.md ~/.claude/skills/proactive-agent.md
 ```
 
-Then reference it in your `CLAUDE.md`:
+Add to your global `~/.claude/CLAUDE.md`:
 
 ```markdown
 ## Skills
-- proactive-agent: see .claude/skills/proactive-agent.md
+- proactive-agent: see ~/.claude/skills/proactive-agent.md
 ```
 
 ### Codex (custom instructions)
 
-Paste the contents of `SKILL.md` into your Codex custom instructions. It will apply automatically to every session.
+Paste the contents of `SKILL.md` into your Codex custom instructions. Applies to every session automatically.
 
 ### Any other agent (Cursor, Gemini CLI, etc.)
 
-Feed the raw GitHub link at the start of your conversation:
+Paste this at the start of your conversation:
 
 > "Please read the instructions at this URL and follow them for this session: https://raw.githubusercontent.com/2506468617xwh-cmyk/proactive-agent/main/SKILL.md"
-
-The agent will fetch the content and apply the rules immediately.
-
-### claude.ai (skill file)
-
-Package and install via the `.skill` format if your interface supports it.
 
 ---
 
 ## Summary format
 
-Every run ends with a structured summary:
+Every run ends with:
 
 ```
-✅ Done — [one-line overall description]
+✅ Done — [one-line description]
+
+Chain executed: [A – Surgical / B – Complete / C – Forward-looking / Custom]
 
 Steps completed:
-1. [what] — [why it was included]
+1. [what] — [why]
 2. ...
 
 ⚠️ Skipped / flagged:
 - [anything skipped and why]
 
 🔜 Natural next step (not done):
-- [the obvious next thing, for your next session]
+- [the obvious follow-on for your next session]
 ```
-
-The **Natural next step** field is intentional — it gives you a clean on-ramp for the next session without reconstructing context.
 
 ---
 
