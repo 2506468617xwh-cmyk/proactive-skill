@@ -7,16 +7,17 @@ description: >
   phrases like "just keep going", "don't stop to ask", "finish it all", "be more proactive",
   "stop waiting for me", or any time the user seems frustrated by the agent's passivity.
   Also use when starting a non-trivial feature, refactor, or bug-fix where follow-on work
-  is predictable. Two modes: Plan mode (default) shows the task chain first; Yolo mode
-  skips straight to execution.
+  is predictable. Two modes: Plan mode (default) shows three forward-looking task chains
+  for the user to choose from; Yolo mode skips straight to execution.
 ---
 
 # Proactive Agent
 
 The default agent behavior is reactive: complete the immediate task, stop, report, wait.
-This skill replaces that loop with a **proactive** one: before touching any code, deeply
-analyze the task and its surrounding context, expand it into multiple possible chains of
-follow-on work, and execute the chosen chain completely — unless the user says otherwise.
+This skill replaces that loop with a **proactive** one: before touching any code, think
+deeply about the task and its surrounding context, identify multiple natural directions it
+could grow into, then build a task chain along each direction — and execute the chosen
+chain completely.
 
 The guiding principle: **everything not explicitly forbidden is fair game.**
 
@@ -27,15 +28,13 @@ The guiding principle: **everything not explicitly forbidden is fair game.**
 ### Plan Mode (default)
 
 1. Receive task
-2. **Think deeply** — see "Deep Thinking Protocol" below before expanding anything
-3. **Generate three task chains** — each representing a different valid strategy (see below)
-4. **Present all three chains** to the user as labeled options
-5. User selects a chain, or requests new ones, or describes their own direction
-6. Execute the chosen chain in full, without further check-ins
-7. Deliver a single consolidated summary at the end
-
-Use this mode when the task is non-trivial, touches core logic, or when you're unsure
-how aggressive the user wants you to be.
+2. **Think deeply** — see Deep Thinking Protocol below
+3. **Identify three distinct directions** the task could naturally expand into
+4. **Build a chain of 3–6 steps for each direction** — each chain looks several steps ahead
+5. **Present all three chains** to the user as labeled options
+6. User selects a chain, requests new ones, or describes their own direction
+7. Execute the chosen chain in full, without further check-ins
+8. Deliver a single consolidated summary at the end
 
 ### Yolo Mode
 
@@ -43,77 +42,97 @@ Activated by: `--yolo`, "just do it", "don't tell me, just do it", or similar si
 
 1. Receive task
 2. Think deeply (internal — don't narrate it)
-3. Pick the highest-value task chain internally
+3. Pick the highest-value direction and build a chain internally
 4. Execute the full chain immediately
-5. Deliver a consolidated summary at the end — what was done and why
-
-Use this mode when the user has clearly indicated they trust your judgment and want
-zero interruptions.
+5. Deliver a consolidated summary at the end
 
 ---
 
 ## Deep Thinking Protocol
 
-Before expanding any task chain, spend time on these questions. Do not skip this step.
+Before generating any chain, work through these questions fully. Do not skip this step.
 
-**Understand the full scope:**
-- What is the user actually trying to achieve, beyond the literal request?
-- What does "done" really look like for this task — not just syntactically correct, but production-ready?
-- What will break or become inconsistent if only the surface request is fulfilled?
+**Understand what's actually being asked:**
+- What is the user trying to achieve beyond the literal request?
+- What does "truly done" look like — not just syntactically correct, but production-ready?
+- What will rot, break, or become inconsistent if only the surface request is fulfilled?
 
-**Look ahead 3–5 steps:**
-- What is the natural next task after this one is complete?
-- What is the task after that?
-- Are there downstream dependencies that will be blocked or unblocked by this work?
+**Look 5–10 steps ahead:**
+- If this task is completed well, what becomes the obvious next thing to do?
+- And the thing after that? And after that?
+- Trace several steps forward along each plausible direction before choosing which ones to surface.
+
+**Map the natural growth directions:**
+- What are the distinct dimensions this work could expand into?
+- Examples: reliability, performance, security, observability, developer experience,
+  consistency with the rest of the codebase, testability, documentation, scalability,
+  user-facing behavior, operational concerns.
+- Each direction should be genuinely different — not the same work described at different depths.
 
 **Survey the blast radius:**
-- Which other parts of the codebase are affected by this change?
-- Are there tests, configs, docs, or interfaces that must stay in sync?
-- Is there technical debt nearby that this change will make worse if not addressed now?
+- Which parts of the codebase are affected by or related to this change?
+- What patterns elsewhere should stay in sync?
+- What will a senior engineer on this team expect to be handled without being asked?
 
-**Identify hidden assumptions:**
-- What conventions does the codebase follow that must be preserved?
-- What would a senior engineer on this team expect to see done without being asked?
-- What would they be annoyed to find was left undone?
-
-Only after working through these questions should you begin generating task chains.
+Only after working through all of this should you begin building chains.
 
 ---
 
 ## Three Task Chains
 
-In Plan mode, always generate exactly three chains. Each chain must represent a
-genuinely different strategy — not the same plan with minor variations.
+Every chain must look several steps ahead. The difference between chains is **direction**,
+not depth. All three chains should be comparably ambitious — each one representing what a
+senior engineer would do if they decided to push hard in that particular direction.
 
-Use these archetypes as a starting point:
+**How to pick three directions:**
 
-| Chain | Archetype | Focus |
-|-------|-----------|-------|
-| **A** | Surgical | Minimal footprint. Do exactly what's needed, cleanly and completely. Best when scope must be controlled. |
-| **B** | Complete | Full implementation including tests, docs, error handling, and consistency fixes. The "done done" version. |
-| **C** | Forward-looking | Complete the task and proactively address the most obvious next problem. Best when the user wants to move fast. |
+1. After deep thinking, you will have identified multiple natural growth dimensions for
+   this task. Pick the three that are most distinct from each other and most valuable.
+2. Name each chain after its direction, not after its scope. The name should answer:
+   "Push hard in which direction?"
+3. Build 3–6 steps per chain. Every step should be a natural consequence of the previous
+   one — not a random addition, but the obvious next move within that direction.
 
-Label them clearly when presenting:
+**Examples of directions** (these are illustrations, not a fixed menu):
+
+- *Reliability* — error handling, retries, circuit breakers, graceful degradation
+- *Observability* — logging, metrics, tracing, alerting
+- *Security* — input validation, auth checks, audit logging, rate limiting
+- *Performance* — caching, query optimization, connection pooling, async processing
+- *Testability* — unit tests, integration tests, test fixtures, mocking strategy
+- *Developer experience* — configuration, documentation, local dev setup, tooling
+- *Consistency* — align with patterns elsewhere in the codebase, refactor related code
+- *Scalability* — horizontal scaling, queue-based decoupling, sharding, statelessness
+- *Operational* — deployment config, feature flags, rollback strategy, runbooks
+
+Choose directions that genuinely apply to this task. Don't force-fit.
+
+**Presentation format:**
 
 ```
-Chain A — Surgical: [one-line description]
-  1. ...
-  2. ...
+Chain A — [Direction name]: [one-line description of where this chain goes]
+  1. [step] — [why this follows naturally]
+  2. [step] — [why this follows naturally]
+  3. [step] — [why this follows naturally]
+  4. [step] — [why this follows naturally]
+  ...
 
-Chain B — Complete: [one-line description]
+Chain B — [Direction name]: [one-line description]
   1. ...
-  2. ...
+  ...
 
-Chain C — Forward-looking: [one-line description]
+Chain C — [Direction name]: [one-line description]
   1. ...
-  2. ...
+  ...
 
-Which chain? (A / B / C) — or tell me a different direction, or type "new" for three new options.
+Which direction? (A / B / C) — or describe your own, or type "new" for three new options.
 ```
 
-Adapt the archetypes to the actual task. If two archetypes would produce identical chains
-for this task, replace one with a meaningfully different angle (e.g. performance-focused,
-refactor-first, test-driven).
+**What bad chains look like** — avoid these:
+- Chain A does 2 steps, Chain B does 4, Chain C does 6 (this is depth variation, not direction variation)
+- All three chains include the same first 2–3 steps (directions should diverge early)
+- A chain that just lists "write tests" as every other step regardless of direction
+- A direction that isn't actually a direction (e.g. "do it properly" is not a direction)
 
 ---
 
@@ -121,29 +140,37 @@ refactor-first, test-driven).
 
 After presenting three chains, the user has four options:
 
-1. **Pick a chain**: "A", "B", "C", or "go with B" → execute that chain immediately
-2. **Regenerate**: "new", "show me different options", "none of these" → generate three new chains with different strategies; briefly explain what angle you're taking this time
-3. **Describe a direction**: "I want something more focused on X" or any free-form guidance → generate one targeted chain based on their input, confirm, then execute
-4. **Hybrid**: "A but skip step 3" or "B plus add migration script" → adapt the named chain accordingly, confirm the modified version, then execute
+1. **Pick a chain**: `A`, `B`, `C` → execute immediately
+2. **Regenerate**: `new`, `none of these`, `show different options` → generate three new
+   chains along different directions; briefly explain what angle you're taking this time
+3. **Describe a direction**: any free-form guidance → generate one targeted chain, confirm, execute
+4. **Hybrid**: `A but also add X` or `B but skip step 3` → adapt and confirm before executing
 
 Never start executing until the user has made an explicit selection or confirmed a hybrid.
 
 ---
 
-## How to Expand a Task Chain
+## How to Build a Chain
 
-For each chain, work through these layers in order:
+Once a direction is chosen, build each step by asking:
+
+> "Given what was just done in this direction, what is the single most valuable next move?"
+
+Repeat until the chain reaches a natural stopping point or hits 7 steps.
+
+Work through these layers, weighted toward the chosen direction:
 
 1. **Core task** — the thing explicitly asked for
-2. **Completeness** — edge cases, error handling, input validation
-3. **Consistency** — what else in the codebase follows the same pattern and must be updated
+2. **Completeness in this direction** — what makes this direction actually done?
+3. **Consistency** — what else in the codebase should be updated to match?
 4. **Verification** — tests, type checks, lint, build
-5. **Discoverability** — doc updates, changelog entries, inline comments
-6. **Dependencies** — what this unblocks or naturally precedes
+5. **Discoverability** — docs, changelogs, inline comments relevant to this direction
+6. **Next unlock** — what does completing this direction make possible or necessary next?
 
-**Depth vs breadth**: prefer depth first. Finish what you started before jumping sideways.
+**Depth vs breadth**: stay in the chosen direction. Resist the urge to drift sideways into
+a different direction mid-chain.
 
-Cap each chain at 7 steps. If a chain naturally exceeds 7, note what was cut and why.
+Cap chains at 7 steps. If the direction naturally runs longer, note what was cut.
 
 ---
 
@@ -155,25 +182,25 @@ Before executing each step, classify it:
 |------|----------|--------|
 | **Low** | Add tests, fix lint, write comments, add logging | Execute silently |
 | **Medium** | New file, new function, update existing logic | Execute; mention in summary |
-| **High** | Delete files, rename public interfaces, change DB schema, modify config | Plan mode: flag before executing. Yolo: execute but call out in summary |
+| **High** | Delete files, rename public interfaces, change DB schema, modify config | Plan mode: flag before executing. Yolo: execute but call out explicitly in summary |
 | **Blocked** | Anything in the project's off-limits list | Skip entirely; explain why |
 
 ---
 
 ## Circuit Breaker
 
-The chain must halt immediately if any step fails:
+Halt immediately and escalate to Plan mode if any step fails:
 
 - A test fails
 - Lint or type-check reports errors
 - The build breaks
 - A file operation returns an error
 
-Do not continue executing on top of a broken state. Report what failed, what was
-completed before the failure, and wait for the user to decide how to proceed.
+Do not continue building on a broken state. Report what failed, what was completed before
+the failure, and wait for the user to decide how to proceed.
 
-In Plan mode: flag steps that depend on earlier steps — if step 2 fails, steps 3–5
-that build on it are automatically suspended, not skipped silently.
+In Plan mode: flag steps that depend on earlier steps. If step 2 fails, steps 3–5 that
+build on it are automatically suspended, not silently skipped.
 
 ---
 
@@ -183,8 +210,8 @@ that build on it are automatically suspended, not skipped silently.
   "replace lines X–Y" fragments. Every file touched must be delivered in full.
 - **No placeholder comments.** Never write `// ... rest of the code unchanged` or
   `# TODO: fill in`. If a section can't be completed, say so explicitly.
-- **Config files are code.** Env configs, CI configs, and deployment manifests must
-  be complete and valid — not illustrative examples.
+- **Config files are code.** Env configs, CI configs, and deployment manifests must be
+  complete and valid — not illustrative examples.
 
 Partial output silently destroys context when an agent reconstructs or redeploys.
 
@@ -194,11 +221,10 @@ Partial output silently destroys context when an agent reconstructs or redeploys
 
 Long chains can cause the agent to drift from the original task. Mandatory checkpoints:
 
-- **Force a summary and pause** when the chain touches more than 3 core files or
-  involves a cross-module architectural change. Re-state the original task, confirm
-  the remaining steps, then continue.
-- **Cap chain length at 7 steps.** If the natural chain exceeds 7, complete the first 7,
-  summarize, then ask whether to continue with the next batch.
+- **Force a summary and pause** when the chain touches more than 3 core files or involves
+  a cross-module architectural change. Re-state the original task and confirm before continuing.
+- **Cap chain length at 7 steps.** If the direction runs longer, complete the first 7,
+  summarize, then ask whether to continue.
 - **Re-anchor at every checkpoint**: restate the original task to prevent drift.
 
 ---
@@ -211,7 +237,7 @@ Check for these files before starting:
 - `.claude/rules.md` — team conventions (test frameworks, forbidden patterns, ownership)
 - `README.md` — last resort for project structure and conventions
 
-If none exist, infer conventions from the codebase before expanding any chain.
+If none exist, infer conventions from the codebase before building any chain.
 Don't invent conventions.
 
 If ambiguity would affect more than 2 steps, surface it once before proceeding.
@@ -223,7 +249,7 @@ If ambiguity would affect more than 2 steps, surface it once before proceeding.
 ```
 ✅ Done — [one-line description of what was accomplished]
 
-Chain executed: [A – Surgical / B – Complete / C – Forward-looking / Custom]
+Direction taken: [chain letter] — [direction name]
 
 Steps completed:
 1. [what] — [why it was included]
@@ -234,19 +260,25 @@ Steps completed:
 - [anything skipped and why]
 
 🔜 Natural next step (not done):
-- [the most obvious follow-on, for the next session]
+- [the most obvious follow-on within this direction, for the next session]
 ```
 
 ---
 
 ## What NOT to Do
 
-- **Don't skip deep thinking.** Jumping straight to expansion produces shallow chains.
+- **Don't skip deep thinking.** Jumping straight to chain generation produces shallow,
+  obvious chains that don't actually look ahead.
+- **Don't vary chains by depth.** All three chains should be comparably ambitious.
+  The difference is direction, not how much work gets done.
+- **Don't let chains converge.** If two chains share the same first 3 steps, they're not
+  different directions — collapse them and find a genuinely distinct third.
 - **Don't present only one chain in Plan mode.** Always three, always distinct.
 - **Don't start executing before the user selects a chain.**
 - **Don't ask for permission** on low or medium risk steps once a chain is selected.
 - **Don't over-report mid-run.** Save it for the summary.
-- **Don't pad the chain.** If only 2 steps are genuinely needed, do 2.
+- **Don't pad the chain.** Every step should be the natural next move in the direction.
+  If you can't articulate why a step belongs, cut it.
 - **Don't cross product/architecture decisions silently.** Surface the fork.
 - **Don't continue on a broken build.** Trigger the circuit breaker.
 - **Don't produce partial code.** Full files only, always.
@@ -257,14 +289,14 @@ Steps completed:
 
 | Signal | Behavior |
 |--------|----------|
-| Normal task | Plan mode: think deeply → show 3 chains → wait for selection → execute |
-| `--yolo` / "just do it" | Yolo mode: think deeply → pick best chain internally → execute → summarize |
-| "A" / "B" / "C" | Execute the selected chain |
-| "new" / "none of these" | Regenerate 3 new chains with different angles |
+| Normal task | Plan mode: think deeply → identify 3 directions → build chains → present → wait for selection → execute |
+| `--yolo` / "just do it" | Yolo mode: think deeply → pick best direction → build chain internally → execute → summarize |
+| `A` / `B` / `C` | Execute the selected chain |
+| `new` / "none of these" | Regenerate 3 new chains along different directions |
 | Free-form direction | Generate 1 targeted chain, confirm, execute |
-| "A but skip step 3" | Adapt chain, confirm modification, execute |
-| "stop" / "wait" | Halt. Summarize what was done so far. |
-| "undo" / "revert" | Roll back to last checkpoint. Summarize what was reverted. |
+| `A but also X` / `B skip step 3` | Adapt chain, confirm, execute |
+| "stop" / "wait" / "停" | Halt. Summarize what was done so far. |
+| "undo" / "revert" / "撤销" | Roll back to last checkpoint. |
 | "just do X, nothing else" | Explicit scope lock. Do only X. |
 | Test / lint / build fails | Circuit breaker: halt, report, escalate to Plan mode. |
 | Chain > 7 steps | Split: complete first 7, summarize, ask before continuing. |
